@@ -1,0 +1,801 @@
+---
+title: "Plotting population trends"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Plotting population trends}
+  %\VignetteEncoding{UTF-8}
+  %\VignetteEngine{knitr::rmarkdown}
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+#library(gamkapva)
+```
+
+
+
+Table 6, page 15, 
+Yellowstone Grizzley Bear Investigations 2018 
+
+Data 
+TODO: R object for focal data
+```{r}
+year <- 1980:2034
+N.obs.bwc <- c(NA,NA,NA,13,17,
+                9,25,13,19,16,
+               25,24,25,20,20,
+               17,33,31,35,33,
+               37,42,52,38,49,
+               31,47,50,44,42,
+               51,39,49,58,50,
+               46,50,58,58,NA,
+               NA,NA,NA,NA,NA,
+               NA,NA,NA,NA,NA,
+               NA,NA,NA,NA,NA)
+
+N.chao2.bwc<-c(NA,NA,NA,19,22,
+               18,28,17,21,18,
+               25,38,41,21,23,
+               43,38,39,37,36,
+               51,48,58,46,58,
+               31,45,53,56,44, #31 - outlier?
+               56,47,59,60,64,
+               51,56,64,57,NA,
+               NA,NA,NA,NA,NA,
+               NA,NA,NA,NA,NA,
+               NA,NA,NA,NA,NA)
+length(year)
+length(N.obs.bwc)
+length(N.chao2.bwc)
+
+
+# TODO: adult total or just adults?
+N.adult1 <- N.obs.bwc*(1/0.274)
+N.adult2 <- N.chao2.bwc*(1/0.274)
+
+bears <- data.frame(year, N.obs.bwc, N.chao2.bwc,
+                    N.adult1, N.adult2)
+
+bears$N.adult2.log <- log(bears$N.adult2)
+
+# Table 5
+litter.size <- c(1.69, 1.82, 1.78, 1.92, 2.23,
+                 2.16, 1.81, 2.32, 1.87,2.40,
+                 2.05, 2.35, 2.18, 2.18, 2.00,
+                 2.00, 1.91, 1.95, 1.86, 1.96,
+                 1.97, 1.96, 1.84, 2.04, 2.16,
+                 1.91, 2.12, 1.98, 1.90, 1.92,
+                 2.17, 1.92, 1.98, 1.96, 1.98,
+                 2.05)
+```
+
+
+Wolves: https://en.wikipedia.org/wiki/History_of_wolves_in_Yellowstone
+Bison: Emigration and Density Dependence in Yellowstone Bison
+
+## Take a look at the data
+
+```{r}
+bears
+```
+
+
+
+## R is great for plots!
+
+An awesome plot about yellowstone bears
+
+```{r}
+library(ggplot2)
+library(ggpubr)
+i.outlier <- which(bears$N.chao2.bwc == 31)
+bear.K <- 250
+ggbear <- ggpubr::ggline(data = bears,
+       y = "N.adult2",
+       x = "year",
+       color = "black",
+       point.color = "red",
+       linetype = "solid",
+       plot_type = "b",
+       size = 1.5,
+       point.size = 4,
+       shape = 16,
+       xlab = "Year",
+       ylab = "Adult bears (N)",
+       title = "Estimated adult Grizzly Bear population of\n Yellowstone National Park, 1983-2016") +
+  geom_hline(yintercept = bear.K, linetype = 2) +
+  geom_segment(aes(x = 1988, xend = 1988, y = 40, yend = 0),
+               col = "red",
+               size = 3,
+               arrow = arrow()) +
+  geom_segment(aes(x = 1995, xend = 1995, y = 40, yend = 0),
+               col = "darkgrey",
+               size = 3,
+               arrow = arrow()) +
+  annotate("text",label = "Fire",
+            x = 1988, y = 50) +
+  annotate("text",label = "Wolves",
+            x = 1996, y = 50) +
+  annotate("text",label = "Bear Carrying Capacity (K)?",
+            x = 1990, y = 258)
+
+ggbear +  geom_smooth(method = "lm",se = F, 
+              formula = y ~ x + I(x^2),
+              fullrange = T)
+```
+
+
+```{r}
+
+
+#linear trend
+sz <- 0.15
+ggbear +  geom_smooth(method = "lm",se = F, 
+              formula = y ~ x + I(x^2),
+              fullrange = T) +
+#bracket - "annotations"
+geom_segment(x = 2000,  xend = 2002, 
+               y = 0,  yend = 0, size = sz) +
+geom_segment(x = 2000,  xend = 2002, 
+               y = 50,  yend = 50, size = sz) +
+geom_segment(x = 2002,  xend = 2002, 
+               y = 0,  yend = 50, size = sz) +
+annotate("text",label = "Annotations",
+            x = 2008, y = 27) +
+# arrow - "trend line"
+geom_segment(aes(xend = 2021, x = 2028, yend = bear.K-30, y = bear.K-80),
+               col = "darkgrey",
+               size = sz+0.5,
+               arrow = arrow(type = "closed",angle = 20))  +
+annotate("text",label = "\nTrend line\n(regression line\nor smoother)",
+            x = 2030, y = bear.K-95, parse = F) +
+# arrow - "reference line"
+geom_segment(aes(x = 1990, xend = 1999, y = bear.K-30, yend = bear.K-6),
+               col = "darkgrey",
+               size = sz+0.5,
+               arrow = arrow(type = "closed",angle = 20))  +
+annotate("text",label = "Reference line",
+            x = 1990, y = bear.K-40, parse = F) 
+
+
+```
+
+
+```{r}
+#large drop - many die
+ggbear +  geom_smooth(method = "lm",se = F, 
+              formula = y ~ x + I(x^2),
+              fullrange = T) +
+  geom_rect(xmin = 2006, xmax = 2035,
+            ymin = 100, ymax = 250, fill = "white") +
+   geom_rect(xmin = 2005.1, xmax = 2035,
+            ymin = 120, ymax = 250, fill = "white") +
+  geom_curve(x = 2006, y = 110, xend = 2006, yend = 220)
+  
+  
+
+#gam
+ggbear +  geom_smooth(method = "gam",se = F, 
+              fullrange = T) 
+
+#loess
+ggbear +  geom_smooth(method = "loess",se = F, 
+              fullrange = T) 
+```
+
+Biology
+* Carrying Capacity (K)
+* Logistic equation (show data prior to 1980s to evoke this?)
+* Exponential population growth (plot exponential population growth?)
+* Fire: succession
+* Wolves: competition
+* whitebark pine: climate change, disease
+* population dynamics
+* N.t+1 = N.t + B - D
+
+R/Stats Vocab: quiz folks on this?
+* assignment
+* object
+* Annotation: a label or note included within a plot (unsed many other ways in science)
+* Smoother: a statistical tool used to visualize trends in data that moves around a lot.  Instead of a straight "line of best fit" for the entire dataset, a smoother creates a flexible line that attempts to show variablity in the trend.
+* non-linear/non-linearities: not a straight line
+lm: linear model; regression line, line of best fit
+* ~: a tilda.  Kinda like =, or f(x)
+* ::
+* library, package: external software loaded into R
+* se: standard error
+* stochastic/stochasticity
+* asymptote
+
+shnow log(bears)
+
+Create data that fall perfectly on a line to compare random/stoch data to perfect data?
+Show data from prior to 1980s to evoke logistic equation
+
+Questions
+What does "/n" do in the title
+
+
+
+
+Log 
+```{r}
+ggpubr::ggline(data = bears,
+       y = "N.adult2.log",
+       x = "year",
+       color = "black",
+       point.color = "red",
+       linetype = "solid",
+       plot_type = "b",
+       size = 1.5,
+       point.size = 4,
+       shape = 16,
+       xlab = "Year",
+       ylab = "log(Adult bears)",
+       title = "Population trend Grizzly Bear population of\n Yellowstone National Park, 1983-2016") +
+  geom_smooth(method = "gam",se = F, 
+             #formula = y ~ x + I(x^2)  + I(x^3) ,
+              fullrange = T) 
+
+```
+
+
+
+
+
+
+## Practice
+
+```{r}
+elk <- c(9609,10469,NA,NA,6380,
+         6534,6534,4272, 4355, 5593,7326,
+         8290,10135,10739,12754,
+         12354,
+         13047, 12941,
+         11149,
+         NA,NA,
+         16363,
+         NA,
+         NA,
+         NA,
+         16742,17901,19272,
+         17023,
+         15644,
+         12335,
+         15587,
+         18066,
+         19299,
+         17290,
+         15397,
+         14246,
+         12025,
+         12075,
+         14682,
+         13673,
+         11969,
+         9215,
+         8335)
+
+year <- 1960:2003
+length(elk)
+length(year)
+
+plot(elk ~ year, type = "b")
+```
+
+Rotate arrows to look like paper Romme et al 200x "Twenty Years After the 1988
+Yellowstone Fires: Lessons About Disturbance and Ecosystems"
+
+```{r}
+ggline(data = YNP_north_elk,
+       y = "N.elk",
+       x = "year",
+       color = "black",
+       point.color = "red",
+       linetype = "solid",
+       plot_type = "b",
+       size = 1.5,
+       point.size = 4,
+       shape = 16,
+       xlab = "days",
+       ylab = "Adult bears (N)",
+       title = "Estimated adult Grizzly Bear population of\n Yellowstone National Park, 1983-2016") +
+  geom_smooth(method = "gam",se = F,
+              fullrange = T) +
+  geom_hline(yintercept = 17500, linetype = 2) +
+  geom_segment(aes(x = 1988, xend = 1988, y = 4000, yend = 0),
+               col = "red",
+               size = 3,
+               arrow = arrow()) +
+    geom_segment(aes(x = 1995, xend = 1995, y = 4000, yend = 0),
+               col = "darkgrey",
+               size = 3,
+               arrow = arrow()) +
+  annotate("text",label = "Fire",
+            x = 1988, y = 5000) +
+  annotate("text",label = "Wolves",
+            x = 1996, y = 5000) +
+  annotate("text",label = "Bear Carrying Capacity (K)?",
+            x = 1985, y = 17500)
+
+```
+
+
+
+## Assignment 
+Key theme of class - don't freak out when you see code - pick it apart
+
+Comment things out to determine what things do
+
+
+```{r}
+wolves <- read.csv(here::here("wolf_data.csv"))
+wolves <- read.csv("wolf_data.csv")
+```
+
+
+Fix the errors
+change 
+change method = "lm" to "gam"
+```{r}
+ggline(data = wolves,
+       y = "wolves",
+       x = "year",
+       color = "black",
+       point.color = "red",
+       linetype = "solid",
+       plot_type = "b",
+       size = 0.5,
+       point.size = 0,
+       shape = 16,
+       xlab = "day",
+       ylab = "Adult bears (t)",
+       title = "Estimated adult Grizzly Bear population of\n Allegheny State Park, 1983-2016") +
+  geom_smooth(method = "lm",se = F) +
+  geom_hline(yintercept = 250, linetype = 2) +
+  annotate("text",label = "Bear Carrying Capacity (K)?",
+            x = 1995, y = 256) +
+  geom_point(aes(size = packs, color = packs)) +
+  scale_colour_gradientn(colours = terrain.colors(10))
+```
+
+
+
+
+
+
+
+
+```{r}
+ggline(data = wolves,
+       y = "wolves",
+       x = "year",
+       color = "black",
+       point.color = "red",
+       linetype = "solid",
+       plot_type = "b",
+       size = 0.5,
+       point.size = 5,
+       shape = 16,
+       xlab = "Year",
+       ylab = "Wolves (N)",
+       xlim = c(1995, 2006),
+       title = "Estimated wolf population of\n Yellowstone National Park") #+
+  #geom_smooth(method = "lm",se = F) +
+  #geom_hline(yintercept = 250, linetype = 2) #+
+  #annotate("text",label = "Wolf Carrying Capacity (K)?",
+  #          x = 1995, y = 256) +
+  #geom_point(aes(size = packs, color = packs)) +
+  #scale_colour_gradientn(colours = terrain.colors(10))
+```
+
+
+
+```{r}
+ggline(data = wolves,
+       y = "wolves",
+       x = "year",
+       color = "black",
+       point.color = "red",
+       linetype = "solid",
+       plot_type = "b",
+       size = 0.5,
+       point.size = 5,
+       shape = 16,
+       xlab = "Year",
+       ylab = "Wolves (N)",
+       #xlim = c(1995, 2006),
+       title = "Estimated wolf population of\n Yellowstone National Park") +
+  #geom_smooth(method = "lm",se = F) +
+  geom_hline(yintercept = 100, linetype = 2) #+
+  #annotate("text",label = "Wolf Carrying Capacity (K)?",
+  #          x = 1995, y = 256) +
+  #geom_point(aes(size = packs, color = packs)) +
+  #scale_colour_gradientn(colours = terrain.colors(10))
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+## A brief field guide to plots in R
+
+* Base R, the classic but powerful default plotting tools
+* ggplot2, the industry standard
+* ggpubr, a simplyfing "wrapper" for ggplot2
+
+Another approach to graphics is xxx, but since the rise of ggplot2 this is rarely used.
+
+### Plot in base R
+
+* Powerful and flexible.
+* Different functions for each type of plot
+* Easy to read
+* Easy to get started...
+* ...but gets tricky quick
+* Still used by many phylogenetics and bioinformatics tools
+
+Brief walk through
+
+```{r}
+plot(N.adult2 ~ year, data = bears)
+```
+
+Type = "l" adds line
+```{r}
+plot(N.adult2 ~ year, data = bears, type = "l")
+```
+
+Type = "b" adds line and keeps points
+```{r}
+plot(N.adult2 ~ year, data = bears,type = "b")
+```
+
+What has changed about this plot? What caused the change?
+```{r}
+plot(N.adult2 ~ year, data = bears,type = "b",
+     ylim = c(0,250))
+```
+
+TODO:
+add axis labels
+
+Yellowstone fire occured in 1988.  Add a vertical reference line using abline()
+```{r}
+plot(N.adult2 ~ year,data = bears, type = "b",
+     ylim = c(0,250))
+abline(v = 1988)
+```
+
+Make line red using col = "red
+```{r}
+plot(N.adult2 ~ year,data = bears, type = "b",
+     ylim = c(0,250))
+abline(v = 1988, col = "red")
+```
+
+Make line thick using lwd = 3.  What do you think lwd means?
+```{r}
+plot(N.adult2 ~ year,data = bears, type = "b",
+     ylim = c(0,250))
+abline(v = 1988, col = "red", lwd = 3)
+```
+
+
+### Plots in ggplot2
+
+* Consistent syntax accross all types of plots
+* Makes no sense when you first look at it
+* Standard plotting tool for statistics, data science
+
+```{r}
+ggplot(data = bears,
+       aes(y = N.adult2,
+           x = year)) +
+  geom_point() +
+  geom_line()
+```
+
+
+Set them to white
+```{r}
+ggplot(data = bears,
+       aes(y = N.adult2,
+           x = year)) +
+  geom_point() +
+  geom_line() +
+  theme_bw()
+```
+
+Increase size of points
+```{r}
+ggplot(data = bears,
+       aes(y = N.adult2,
+           x = year)) +
+  geom_point(size = 3) +
+  geom_line() +
+  theme_bw()
+```
+ 
+Lael axis.  What command is doing this
+```{r}
+ggplot(data = bears,
+       aes(y = N.adult2,
+           x = year)) +
+  geom_point(size = 3) +
+  geom_line() +
+  theme_bw() +
+  xlab("Year")
+```
+
+
+Label y axis
+```{r}
+ggplot(data = bears,
+       aes(y = N.adult2,
+           x = year)) +
+  geom_point(size = 3) +
+  geom_line() +
+  theme_bw() +
+  xlab("Year") +
+  ylab("Adult bears (N)")
+```
+
+
+Set y axis limit to 0.
+What command does this?
+```{r}
+ggplot(data = bears,
+       aes(y = N.adult2,
+           x = year)) +
+  geom_point(size = 3) +
+  geom_line() +
+  theme_bw() +
+  xlab("Year") +
+  ylab("Adult bears (N)") +
+  ylim(0,225)
+```
+
+
+
+Add trend line
+
+```{r}
+ggplot(data = bears,
+       aes(y = N.adult2,
+           x = year)) +
+  geom_point(size = 3) +
+  geom_line() +
+  theme_bw() +
+  xlab("Year") +
+  ylab("Adult bears (N)") +
+  ylim(0,225) +
+  geom_smooth(method  = "lm", se = F) 
+```
+
+
+Add smoother
+```{r}
+ggplot(data = bears,
+       aes(y = N.adult2,
+           x = year)) +
+  geom_point(size = 3) +
+  geom_line() +
+  theme_bw() +
+  xlab("Year") +
+  ylab("Adult bears (N)") +
+  ylim(0,225) +
+  geom_smooth(method  = "gam", se = F) 
+```
+
+Compare
+```{r}
+ggplot(data = bears,
+       aes(y = N.adult2,
+           x = year)) +
+  geom_point(size = 3) +
+  geom_line() +
+  theme_bw() +
+  xlab("Year") +
+  ylab("Adult bears (N)") +
+  ylim(0,225) +
+  geom_smooth(method  = "gam", se = F) +
+  geom_smooth(method  = "lm", se = F) 
+```
+
+
+```{r}
+ggplot(data = bears,
+       aes(y = N.adult2,
+           x = year)) +
+  geom_point(size = 3) +
+  geom_line() +
+  theme_bw() +
+  xlab("Year") +
+  ylab("Adult bears (N)") +
+  ylim(0,225) +
+  geom_smooth(method  = "gam", se = F) +
+  geom_hline(yintercept = 210)
+```
+
+
+Make line dashed
+```{r}
+ggplot(data = bears,
+       aes(y = N.adult2,
+           x = year)) +
+  geom_point(size = 3) +
+  geom_line() +
+  theme_bw() +
+  xlab("Year") +
+  ylab("Adult bears (N)") +
+  ylim(0,225) +
+  geom_smooth(method  = "gam", se = F) +
+  geom_hline(yintercept = 210, linetype = 2)
+```
+
+
+```{r}
+ggplot(data = bears,
+       aes(y = N.adult2,
+           x = year)) +
+  geom_point(size = 3) +
+  geom_line() +
+  theme_bw() +
+  xlab("Year") +
+  ylab("Adult bears (N)") +
+  ylim(0,225) +
+  geom_smooth(method  = "gam", se = F) +
+  geom_hline(yintercept = 210, linetype = 2, col = "red")
+```
+
+
+
+Add vertical  line for fire
+```{r}
+ggplot(data = bears,
+       aes(y = N.adult2,
+           x = year)) +
+  geom_point(size = 3) +
+  geom_line() +
+  theme_bw() +
+  xlab("Year") +
+  ylab("Adult bears (N)") +
+  ylim(0,225) +
+  geom_smooth(method  = "gam", se = F) +
+  geom_hline(yintercept = 210, linetype = 2) +
+  geom_vline(xintercept = 1988)
+```
+
+
+```{r}
+ggplot(data = bears,
+       aes(y = N.adult2,
+           x = year)) +
+  geom_point(size = 3) +
+  geom_line() +
+  theme_bw() +
+  xlab("Year") +
+  ylab("Adult bears (N)") +
+  ylim(0,225) +
+  geom_smooth(method  = "gam", se = F,
+              fullrange=TRUE) +
+  geom_hline(yintercept = 210, linetype = 2) +
+  #geom_vline(xintercept = 1988) +
+  geom_segment(aes(x = 1988, xend = 1988, y = 40, yend = 0),
+               col = "red",
+               size = 3,
+               arrow = arrow())
+```
+
+
+```{r}
+ggplot(data = bears,
+       aes(y = N.adult2,
+           x = year)) +
+  geom_point(size = 3) +
+  geom_line() +
+  theme_bw() +
+  xlab("Year") +
+  ylab("Adult bears (N)") +
+  ylim(0,250) +
+  geom_smooth(method = "gam")+
+  # geom_smooth(method  = "lm", se = F,
+  #             formula = y ~ x + I(x^2),
+  #             fullrange=TRUE) +
+  geom_hline(yintercept = 215, linetype = 2) +
+  #geom_vline(xintercept = 1988) +
+  geom_segment(aes(x = 1988, xend = 1988, y = 40, yend = 0),
+               col = "red",
+               size = 3,
+               arrow = arrow())
+```
+
+
+
+### ggpubr
+
+```{r}
+ggline(data = bears,
+       y = "N.adult2",
+       x = "year")
+```
+
+
+```{r}
+ggscatter(data = bears,
+       y = "N.adult2",
+       x = "year",
+       color = "black",
+       point.color = "red",
+       linetype = "solid",
+       plot_type = "b",
+       size = 2,
+       point.size = 4,
+       add = "reg.line",
+       shape = 10)
+```
+
+```{r}
+ggline(data = bears,
+       y = "N.adult2",
+       x = "year",
+       color = "black",
+       point.color = "red",
+       linetype = "solid",
+       plot_type = "b",
+       size = 2,
+       point.size = 4,
+       shape = 10)
+```
+
+
+```{r}
+ggline(data = bears,
+       y = "N.adult2",
+       x = "year") +
+       ylim(0,250) +
+       xlab("Year") +
+       ylab("Adult bears (N)") +
+       geom_smooth(type = "gam") +
+       geom_hline(yintercept = 250)
+```
+
+
+```{r}
+
+lm.mod <- lm(N.adult2 ~ year +I(year^2), data = bears)
+x.hat <- predict.lm(lm.mod, newdata = bears)
+
+```
+
+
+
+
+```{r}
+
+year.wolves <- 1995
+year.fire <- 1988
+plot(N.chao2.bwc*(1/0.274) ~ year, type = "b",
+     ylim = c(0,700))
+abline(v = year.wolves)
+abline(v = year.fire)
+points(N.obs.bwc ~ year, pch = 2, col =2)
+```
+

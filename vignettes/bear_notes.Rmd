@@ -1,0 +1,58 @@
+---
+title: "Bears"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Bears}
+  %\VignetteEncoding{UTF-8}
+  %\VignetteEngine{knitr::rmarkdown}
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(gamkapva)
+```
+
+
+
+
+* Dennis B., Munholland P.L. & Michael J. Scott (1991).  Estimation of growth and extinction parameters for endangered species. Ecol. Monogr. 61:115-143.
+
+* Dennis B. & Taper M.L. (1994) Density dependence in time series observations of natural populations: estimation and testing. Ecol. Monogr., 64, 205-224.
+- LRT test for density dependence
+- Species: bear, 2 Yellowstone Elk populations
+
+* Holmes, EE.  2001.  Estimating risks in declining populations with poor data
+- Running sums
+- Covered in Morris & Doak
+
+* Morris and Doak.  2002.
+
+* Lindley S.T. (2003) Estimation of population growth and extinction parameters from noisy data. Ecol. Appl., 13: 806-813.
+- Species: California sea otter and Yellowstone
+grizzly bear
+- no code?
+
+
+Dennis and Poncian.  2014,  Density-dependent state-space model for population-abundance
+data with unequal time intervals
+- bobcats
+- R script - custom
+- Ornstein-Uhlenbeck state space model
+
+Eberhardt et al 
+Table 3
+1959 to 1985
+
+```{r}
+
+```
+
+

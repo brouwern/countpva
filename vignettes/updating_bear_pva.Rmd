@@ -1,0 +1,122 @@
+---
+title: "temp"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{temp}
+  %\VignetteEncoding{UTF-8}
+  %\VignetteEngine{knitr::rmarkdown}
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+Table 6, page 15, 
+Yellowstone Grizzley Bear Investigations 2018 
+
+Different than Dennis b/c only for core demographic area?
+
+```{r}
+year <- 1980:2015
+N.obs.bwc <- c(13,17,
+                9,25,13,19,16,
+               25,24,25,20,20,
+               17,33,31,35,33,
+               37,42,52,38,49,
+               31,47,50,44,42,
+               51,39,49,58,50,
+               46,50,58,58)
+
+plot(N.obs.bwc ~ year, type = "b")
+length(N.obs.bwc)
+length(year)
+```
+
+
+```{r}
+number.of.obs <- length(N.obs.bwc)
+N.tplus1 <- N.obs.bwc[-1]
+N.t      <- N.obs.bwc[-number.of.obs]
+lambda.t <- N.tplus1/N.t
+log.lambda.t <- log(lambda.t)
+hist(lambda.t)
+hist(log.lambda.t)
+```
+
+
+```{r}
+number.of.lambdas <- length(lambda.t)
+lambda.geometric <- cumprod(lambda.t)[number.of.lambdas]^(1/number.of.lambdas)
+```
+
+
+
+Simulate population trajectory with geometric population growth rate
+```{r}
+N.initial <- 58
+N.t.plus1 <- 58*lambda.geometric
+
+years.project <- 100
+Ns.gm.sim <- rep(NA,years.project)
+Ns.gm.sim[1] <- N.initial
+
+for(i in 2:length(Ns.gm.sim)){
+  Ns.gm.sim[i] <- Ns.gm.sim[i-1]*lambda.geometric
+}
+
+
+
+N.initial <- 58
+years.project <- 100
+
+Ns.stoch.sim <- rep(NA,years.project)
+Ns.stoch.sim[1] <- N.initial
+
+for(i in 2:length(Ns.stoch.sim)){
+  lambda.rand.i <- sample(lambda.t, 1,replace = T)
+  Ns.stoch.sim[i] <- Ns.stoch.sim[i-1]*lambda.rand.i
+}
+
+
+
+years <- 1:years.project+2015
+
+plot(Ns.stoch.sim ~ years, type = "l")
+points(Ns.gm.sim ~ years)
+```
+
+
+
+```{r}
+years.project <- 50
+n.sims <- 10000
+Ns.stoch.sim.mat <- matrix(data = NA, 
+                           nrow = years.project,
+                           ncol = n.sims)
+Ns.stoch.sim.mat[1,] <- N.initial
+q.extinct <- 10
+
+for(i in 2:years.project){
+  lambdas.rand.i <- sample(lambda.t, n.sims,replace = T)
+  Ns.stoch.sim.mat[i, ] <- Ns.stoch.sim.mat[i-1,]*lambdas.rand.i
+  Ns.stoch.sim.mat[i, ] <- ifelse(Ns.stoch.sim.mat[i, ] < q.extinct, 
+                                  NA,
+                                  Ns.stoch.sim.mat[i, ])
+}
+
+
+extinctions <- rep(NA,nrow(Ns.stoch.sim.mat))
+for(i in 1:nrow(Ns.stoch.sim.mat)){
+  extinctions[i] <- length(which(is.na(Ns.stoch.sim.mat[i,]) == TRUE))
+}
+#matplot(y = Ns.stoch.sim.mat, x = 1:years.project, type = "l")
+
+plot(extinctions/n.sims ~ c(1:years.project))
+```
+
+

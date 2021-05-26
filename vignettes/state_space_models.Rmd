@@ -1,0 +1,321 @@
+---
+title: "Untitled"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Adapting SAS PROC MIXED code to R lme function to fit state-space models
+
+
+Stables, Taper & Dennis.  2004. Estimating population trend & process variation for PVA in the presence of sampling error.  Ecology.  https://doi.org/10.1890/03-3101
+proc mixed  noitprint noinfo data = in; 
+model W= / DDFM=KENWARDROGER;
+repeated /type=toep(2) subject=intercept;
+estimate 'trend' intercept 1"
+
+Dennis et al.  2006.  Estimating density dependence, proces noise, & observation error  Ecological Monographs.  https://doi.org/10.1890/0012-9615(2006)76[323:EDDPNA]2.0.CO;2
+class time;
+model y= ;
+random time;
+repeated / type=ar(1) subject=intercept;
+estimate 'intercept' intercept 1;
+
+Staudenmayer and John P. Buonaccorsi.  2006.  Measurement Error in a random walk model with Applications to Population Dynamics.  Biometrics.
+
+Buonaccorsi & Staudenmayer J. (2009) Statistical methods to correct for observation error in a density-independent population model. Ecol. Monogr. 79:  299-324. 
+
+
+https://doi.org/10.1890/07-1299.1
+proc mixed data=b asycov covtest CL;
+model yhat = con / noint DDFM=satterth solution cl;
+random z1-z&num/type=toep(1);
+run;
+
+
+### Stabples, Taper & Dennis 2004
+
+"The vector W is a series of the observed log population growth rate at each of the (T − 1) one‐step time intervals in the time series of observations."
+
+
+   Input is yearly population estimates after cards statement  */
+
+dm "log;clear;out;clear;";
+
+data in;
+input Nt @@;
+retain ntmp 1;
+W = log(Nt)-log(ntmp);
+ntmp = Nt;
+if _n_ = 1 then delete;
+cards;   
+   38
+    51
+    46
+    52
+    53
+    28
+    34
+    36
+    19
+    23
+    28
+    22
+    13
+    13
+    19
+    12
+;
+
+/*  fits intercept only model with toeplitz covariance structure 
+    and tests for nonzero trend (intercept value) with Kenward and
+    Roger modified degrees of freedom                                  */
+proc mixed  noitprint noinfo data = in; 
+model W= / DDFM=KENWARDROGER;
+repeated /type=toep(2) subject=intercept;
+estimate 'trend' intercept 1;
+
+
+
+```{r}
+condor.N <- c(38,51,46,52,53,28,34,36,19,23,28,22,13,13,19,12)
+condor.length <- length(condor.N)
+W <- condor.N[-1]/condor.N[-condor.length]
+time <- 1:length(W)
+
+library(nlme)
+
+x <- gls(log(W) ~ 1, 
+            correlation = corARMA(,~1, p = 2, q = 0))
+
+anova(x)
+# SE = sqrt(SD)/N
+0.3309129*14
+```
+
+
+
+
+
+### Dennis et al 2006
+
+Dennis density dependence
+
+
+
+run;
+quit;
+Nuggets
+https://www.rdocumentation.org/packages/agriTutorial/versions/0.1.4/topics/example4
+
+https://www.stat.ncsu.edu/people/davidian/courses/st790/examples/dental_lme.R
+
+Use glmmPQL?
+https://fukamilab.github.io/BIO202/08-B-spatial-regression.html
+
+
+```{r}
+#Data: bird counts
+N <-c(18, 10,  9, 14, 17,
+      14,  5, 10,  9,  5,
+      11, 11,  4,  5,  4,
+       8,  2,  3,  9,  2, 
+       4,  7,  4,  1,  2,
+       4, 11, 11,  9,  6)
+
+# Year 
+year.t <- 1:length(N)
+group  <- 1
+plot(N~year.t, type = "b")
+
+# Make dataframe
+bbs.ss <- data.frame(N, year.t,group)
+bbs.ss$year.fac <- factor(bbs.ss$year.t)
+
+
+gls.corCAR1 <- gls(log(N) ~ 1, 
+        correlation =  corCAR1(form = ~year.t),
+            data = bbs.ss,
+            method = "ML")
+
+gls.corExp <- lme(log(N) ~ 1, 
+                  random = ~1|year.fac,
+           correlation =  corExp(form = ~year.t|year.fac,
+                            nugget = T),
+            data = bbs.ss,
+            method = "ML")
+
+getVarCov(gls.corExp)
+
+
+mod.corAR1.vs2 <- lme(log(N) ~ 1, 
+        correlation =  corCAR1(form = ~year.t| year.fac),
+            random = ~1|year.fac,
+            data = bbs.ss,
+            method = "ML",
+        control = lmeControl( #opt = "optim",
+                        optimMethod = "L-BFGS-B"))
+summary(mod.corAR1.vs2)
+summary(mod.corAR1.vs2$modelStruct$corStruct)
+
+VarCorr(mod.corAR1.vs2)
+getVarCov(mod.corAR1.vs2)
+summary(mod.corAR1.vs2)
+# Random effects:
+#  Formula: ~1 | year.fac
+#         (Intercept)  Residual
+# StdDev:   0.6550696 0.2456511
+0.6550696^2    # 0.4291162
+sqrt(0.6550696)# 0.8093637
+0.2456511^2    #0.06034446
+sqrt(0.2456511)#0.495632
+
+# Correlation Structure: Continuous AR(1)
+#  Formula: ~year.t | year.fac 
+#  Parameter estimate(s):
+# Phi 
+0.2 
+cs <- mod.corAR1.vs2$modelStruct$corStruct
+coef(cs,unconstrained=FALSE)
+
+# Fixed effects: log(N) ~ 1 
+#                Value Std.Error DF  t-value p-value
+# (Intercept) 1.824743 0.1299152 30 14.04565       0
+
+
+
+
+library(nlme)
+
+mod.ranef.only <- nlme::lme(log(N) ~ 1, 
+            random = ~1|year.fac,
+            data = bbs.ss,
+            method = "ML")
+summary(mod.ranef.only)
+
+
+mod.corAR1.vs1 <- lme(log(N) ~ 1, 
+            correlation =  corCAR1(form = ~year.t|group),
+            random = ~1|year.fac,
+            data = bbs.ss,
+            method = "ML")
+
+# Error:
+##"Error in lme.formula(log(N) ~ 1, correlation = corAR1(form = ~year.t |  : 
+##  incompatible formulas for groups in 'random' and 'correlation'"
+
+# implies corAR1(form = ~year.t|group)
+#  Phi = 0
+
+# corAR1 vs corCAR1
+#  "AR" vs
+mod.corAR1.vs2 <- lme(log(N) ~ 1, 
+            correlation =  corCAR1(form = ~year.t),
+            random = ~1|year.fac,
+            data = bbs.ss,
+            method = "ML")
+
+
+
+
+mod.2 <- lme(log(N) ~ 1, 
+            random = ~1|year.fac,
+            data = bbs.ss,
+            method = "ML")
+summary(mod.2)
+update(mod.2, correlation = corAR1(form = ~1|group))
+
+
+coef(mod$modelStruct$corStruct)
+corStruc(mod)
+summary(mod)
+fixef(mod)
+var(mod)
+covar(mod)
+ACF(mod, maxLag = 11)
+```
+
+
+```{r}
+update(fm3BW.lme, correlation = corGaus(form = ~ Time))
+```
+
+
+```{r}
+mod.1 <- lme(log(N) ~ 1, 
+            correlation =  corGaus(form = ~ year.t),
+            random = ~1|year.fac,
+            data = bbs.ss,
+            na.action = na.omit,
+            method = "ML")
+summary(mod.1)
+```
+
+
+```{r}
+n <- 6                                              ## Number of time points
+x <- MASS::mvrnorm(mu = rep(0,n),
+             Sigma = .7 ^ as.matrix(dist(1:n)) )    ## Simulate the process using the MASS package
+y <- x + rnorm(n)   
+times <- factor(1:n)
+levels(times)
+group <- factor(rep(1,n))
+dat0 <- data.frame(y,times,group)
+glmmTMB(y ~ ar1(times + 0 | group), data=dat0)
+```
+
+
+```{r}
+glmmTMB(N ~ ar1(year.t + 1 | group), data=bbs.ss)
+```
+
+
+
+
+Stables, Taper & Dennis.  2004. Estimating population trend & process variation for PVA in the presence of sampling error.  Ecology.  https://doi.org/10.1890/03-3101
+* density independent
+* even time intervals
+* Species:  Whooping Crane (Grus americana), grizzly bear (Ursus arctos horribilis), California Condor (Gymnogyps californianus), and Puerto Rican Parrot (Amazona vittata).
+* "fits intercept only model with toeplitz covariance structure 
+    and tests for nonzero trend (intercept value) with Kenward and
+    Roger modified degrees of freedom                                  */
+proc mixed  noitprint noinfo data = in; 
+model W= / DDFM=KENWARDROGER;
+repeated /type=toep(2) subject=intercept;
+estimate 'trend' intercept 1"
+
+Dennis et al.  2006.  Estimating density dependence, proces noise, & observation error.  Ecological Monographs.  https://doi.org/10.1890/0012-9615(2006)76[323:EDDPNA]2.0.CO;2
+- species: Breeding Bird Survey (BBS)
+- PROC MIXED
+- density dependence (but fit using PROC mixed?)
+class time;
+model y= ;
+random time;
+repeated / type=ar(1) subject=intercept;
+estimate 'intercept' intercept 1;
+
+Staudenmayer and John P. Buonaccorsi.  2006.  Measurement Error in a random walk model with Applications to Population Dynamics.  Biometrics.
+- computations required to fit this model
+can be done in SAS with proc mixed or in R/Splus with
+lme() (see the electronic appendix in Staples et al., 2004, at
+http://esapubs.org/archive/ecol/E085/025/supp-1.htm,
+for instance)
+
+Buonaccorsi & Staudenmayer J. (2009) Statistical methods to correct for observation error in a density-independent population model. Ecol. Monogr. 79:  299-324.  https://doi.org/10.1890/07-1299.1
+- density independent
+- species: grizzly bears, Whooping Cranes, California Condors, and Puerto Rican Parrots
+- PROC mixed
+proc mixed data=b asycov covtest CL;
+model yhat = con / noint DDFM=satterth solution cl;
+random z1-z&num/type=toep(1);
+run;
+/* some other choices for proc mixed with titles modified */
+title ’Unconstrained’;
+proc mixed data=b asycov covtest CL nobound;
+model yhat = con / noint DDFM=satterth solution cl;
+random z1-z&num/type=toep(1);
+run;

@@ -1,0 +1,136 @@
+---
+title: "Count-based PVA using methods of Dennis et al 1991 and Morris & Doak 2002"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{temp}
+  %\VignetteEncoding{UTF-8}
+  %\VignetteEngine{knitr::rmarkdown}
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+#library(countpva)
+```
+
+
+
+Dennis et al Figure 5
+1959 to 1987
+
+Morris & Doak 20002
+
+```{r}
+census <- 1:39
+year.t   <- 1959:1997
+females.N <- c(44,47,46,44,46,
+               45,46,40,39,39,
+               42,39,41,40,33,
+               36,34,39,35,34,
+               38,36,37,41,39,
+               51,47,57,48,60,
+               65,74,69,65,57,
+               70,81,99,99)
+lambda.i <- females.N[-1]/females.N[-length(females.N)]
+lambda.i <- c(lambda.i,NA)
+hist(lambda.i)
+lambda_log <- log(lambda.i)
+
+mean(lambda_log, na.rm = T)
+var(lambda_log, na.rm = T)
+
+x.i <- year.t[-1]-year.t[-length(females.N)]
+x.i <- sqrt(x.i)
+x.i <- c(x.i, NA)
+y.i <- lambda_log/x.i
+mean(lambda.i, na.rm = T)
+var(lambda.i, na.rm = T)
+bear_N <- cbind(census,
+                year.t,
+                females.N,
+                lambda.i, 
+                lambda_log,
+                x.i,
+                y.i)
+
+bear_N <- as.data.frame(bear_N)
+
+head(bear_N)
+tail(bear_N)
+
+```
+
+
+```{r}
+plot(females.N ~ year.t, data = bear_N, type = "b", col = 2, lwd = 3, lty = 3)
+```
+
+
+```{r}
+plot(lambda_log ~ females.N, data = bear_N, type = "p", col = 2, lwd = 3, lty = 3)
+plot(lambda_log ~ females.N, data = bear_N, type = "p", col = 2, lwd = 3, lty = 3)
+
+```
+
+
+```{r}
+bear_lm <- lm(y.i ~ -1 + x.i, data = bear_N)
+bear_lm_summary <- summary(bear_lm)
+bear_lm_summary$coefficients["x.i","Pr(>|t|)"] # P value for mu Ho = 0
+
+bear_lm_anova <- anova(bear_lm)
+
+mu_dennis <- coef(bear_lm)
+mu_dennis_ci <- confint(bear_lm)
+
+sigma2_dennis <- bear_lm_anova["Residuals","Mean Sq"]
+
+# df = q = number of transitions
+q.transitions <- length(na.omit(bear_N$lambda.i))
+df <- q.transitions-1
+chi2.025 <- qchisq(0.025, df)  
+chi2.975 <- qchisq(0.975, df)  
+
+sigm2_dennis_ci_up <- df*sigma2_dennis/chi2.025
+sigm2_dennis_ci_lo <- df*sigma2_dennis/chi2.975
+
+sigma2_dennis_ci <- c(sigm2_dennis_ci_lo,sigm2_dennis_ci_up)
+
+lambda_dennis <- exp(coef(bear_lm))
+
+```
+
+```{r}
+plot(y.i ~ x.i, data = bear_N, type = "p", col = 2, lwd = 3, lty = 3,
+     xlim = c(0,1.125))
+abline(bear_lm)
+```
+
+Durbin-Watson test for autocorrelation
+```{r}
+e.i <- resid(bear_lm)
+
+sum(((e.i[-1]-e.i[-length(e.i)])^2))/sum(e.i^2)
+
+
+
+```
+
+
+Durbin-Watson test for autocorrelation
+```{r}
+car::durbinWatsonTest(dennis_mod)
+car::durbinWatsonTest(resid(dennis_mod))
+
+
+lmtest::dwtest(dennis_mod)
+lmtest::dwtest(y.i ~ -1 + x.i, data = bear_N)
+lmtest::bgtest(dennis_mod)
+```

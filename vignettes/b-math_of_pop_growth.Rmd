@@ -1,0 +1,35 @@
+---
+title: "The mathematics of population dynamics"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{The mathematics of population dynamics}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(gamkapva)
+```
+
+Harris et al 2006.  Lambda
+
+Page 1
+2018: 56 females (58 table 5, 56 table 6)  w/cubs w/in DMA; total population 714
+femal mortality: 9%
+independent-age males: 20% (usally 1/2 this, eg 9.8%)
+depencent young: 9%
+
+Table 5, Table 6 - yearly estimates through 2018
+students coudl be assigned a year to use for the basis of calculations
+
+Harris et al 2007 Ursus
+Lambda w/monte carlo CI
+0.972-1.096 w/unkown fates = dead
+1.008-1.115

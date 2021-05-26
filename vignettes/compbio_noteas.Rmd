@@ -1,0 +1,29 @@
+---
+title: "temp"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{temp}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(countpva)
+```
+
+
+Assignment: get data for UK bird species, write brief intro about its range and IUCN status
+Goal - create package with class (semester-long project)
+
+Biology background
+Math tools/skills
+Computing/Datascience tools/skills
+Computational problem and solution
+

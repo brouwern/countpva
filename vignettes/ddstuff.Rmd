@@ -1,0 +1,217 @@
+---
+title: "Untitled"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+N.jrc <- c(90,175,40,45,175,200,425,425,800,256,713,198,1819,575,567,
+           1819,7227,852,216,244,267,1753,999,1788,143,79,94)
+yr.jrc <- c(1960:1986)
+
+```
+
+
+```{r}
+calc_count_lambda <- function(time.series, return = "raw"){
+  # length of time series
+  time.series.length <- length(time.series)
+  
+  # N.t+1 values: drop first observation
+  ## in the time series
+  N.t.plus.1 <- time.series[-1]
+  
+  # N.t: drop last observation
+  ## last obs has index = length of vector
+  N.t <- time.series[-time.series.length]
+  
+  # lambda.i = N.t+1/N.t
+  lambda.i <- N.t.plus.1/N.t
+  
+  # log(lambda.i)
+  lambda.log.i <- log(lambda.i)
+  
+  if(return == "raw" | return == "r"){
+    return(lambda.i)
+  }
+  
+  if(return == "log" | return == "l" | return == "ln"){
+    return(lambda.log.i)
+  }
+  
+  if(return == "both" | return == "b"){
+    lambda.df <- cbind(lambda.i, lambda.log.i)
+    return(lambda.df)
+  }
+    
+}
+```
+
+
+```{r}
+build_countpva_df <- function(time.series,year.start,year.end){
+  lambda.df <- calc_count_lambda(time.series = time.series, return = "both")
+  
+  #lambda can't be calcualted for last yeart
+  lambda.df <- rbind(lambda.df, c(NA,NA))
+  year <- c(year.start:year.end)
+  countpva.df <- cbind(year,time.series,lambda.df)
+  countpva.df <- data.frame(countpva.df)
+  names(countpva.df)[2] <- "N.t"
+  return(countpva.df)
+}
+```
+
+
+```{r}
+calc_count_lambda(N.jrc, return = "raw")
+calc_count_lambda(N.jrc, return = "log")
+calc_count_lambda(N.jrc, return = "both")
+```
+
+
+```{r}
+jrc_data <- build_countpva_df(time.series = N.jrc,
+                  year.start = 1960,
+                  year.end = 1986)
+```
+
+
+```{r}
+plot(N.t ~ year, data =jrc_data, type = "b",
+     xlab = "Year",
+     ylab = "Estimated number of females")
+```
+
+
+
+```{r}
+plot(lambda.i ~ N.t, data = jrc_data)
+```
+
+
+
+
+```{r}
+jrc_di <- nls(lambda.log.i ~r, data = jrc_data, start = list(r = 1))
+
+AIC(jrc_di)
+logLik(jrc_di)
+coef(jrc_di)
+
+# residual squared variation V (Morris & Doak pg 113)
+mean(resid(jrc_di)^2)
+calc_Vr <- function(model){
+  mean(resid(model)^2)
+}
+
+
+# Small sample size corrected AIC (AICc)
+
+AICc <- function(model){
+  #p = number of parameters, including variance Vr
+  p <- length(coef(model))+1
+  q <- length(resid(model))
+  logLikelihood <- as.vector(logLik(model))
+  AICc <- -2*logLikelihood+(2*p*q)/(q-p-1)
+  return(AICc)
+}
+
+# 
+calc_var_hat <- function(model){
+  Vr <- calc_Vr(model)
+  var_hat <- q*Vr/(q-1)
+  return(var_hat)
+}
+  
+as.vector((logLik(jrc_di)))
+AICc(jrc_di) 
+-2*logLik(jrc_di)
+calc_Vr(jrc_di)
+calc_var_hat(jrc_di)
+
+```
+
+```{r}
+jrc_ricker <- nls(lambda.log.i ~r*(1-N.t/K), data = jrc_data,
+            start = list(r = 1, K = 600))
+
+calc_Vr(jrc_ricker)
+calc_var_hat(jrc_ricker)
+```
+
+```{r}
+jrc_theta_logistic <- nls(lambda.log.i ~r*(1-(N.t/K)^theta), data = jrc_data)
+```
+
+
+
+```{r}
+summary(jrc_ricker)
+var(resid(jrc_di))
+var(resid(jrc_ricker))
+var(resid(jrc_theta_logistic))
+```
+
+
+
+```{r}
+r <- 0.3458
+K <- 846.017
+theta <- 1
+sigma2 <- 1.1151
+Nc <- 94 #starting population size
+Nx <- 20
+
+morris_doak_thetalogit_pva <- function(tmax = 20,
+                               r, K, theta, sigma2, 
+                               Nc, Nx,
+                              NumReps = 50000){
+  sigma <- sqrt(sigma2)
+  N <- rep(Nc, NumReps)
+  NumExtant <- NumReps
+  Extant <- rep(NA, tmax)
+
+ for(t in 1:tmax){
+  N <- N*exp(r*(1 - (N/K)^theta) + rnorm(n = length(N),mean = 0,sd = sigma))
+  if(any(N <= Nx) == TRUE){
+    i.quasi.extinct <- which(N <= Nx)
+    N <- N[-i.quasi.extinct]
+  }
+  NumExtant <- length(N)
+  Extant[t] <- NumExtant
+ } 
+  
+  return(Extant)
+}
+
+
+Extant.Nx20 <- morris_doak_thetalogit_pva(r = 0.3458, K = 846.017, 
+                                          theta = 1, sigma2 = 1.1151,
+                   Nc = 94, Nx = 20)
+
+Extant.Nx30 <- morris_doak_thetalogit_pva(r = 0.3458, K = 846.017, 
+                                          theta = 1, sigma2 = 1.1151,
+                   Nc = 94, Nx = 30)
+
+plot(Extant ~ c(1:tmax))
+
+prob_extinct <- function(num_reps, extant){
+  (num_reps-extant)/num_reps
+}
+
+prob.extinct.Nx20 <- prob_extinct(num_reps = 50000, extant = Extant.Nx20)
+prob.extinct.Nx30 <- prob_extinct(num_reps = 50000, extant = Extant.Nx30)
+plot(prob.extinct.Nx20 ~ c(1:20), type = "l",
+     ylim = c(0,0.6),
+     xlab = "Years into the futuyre",
+     ylab = "Cumulative probability of quasi-extinction")
+lines(prob.extinct.Nx30 ~ c(1:20))
+```
+
